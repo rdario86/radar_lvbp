@@ -9,7 +9,6 @@ st.markdown("---")
 
 def probar_datos_lvbp():
     FECHA_PRUEBA = "2025-12-15" 
-    
     st.info(f"⏳ Viajando en el tiempo a la fecha: **{FECHA_PRUEBA}**...")
 
     try:
@@ -19,7 +18,7 @@ def probar_datos_lvbp():
         return
 
     if not juegos:
-        st.warning("❌ No se encontraron juegos de Ligas de Invierno en esta fecha.")
+        st.warning("❌ No se encontraron juegos en esta fecha.")
         return
 
     juego_lvbp = None
@@ -29,48 +28,58 @@ def probar_datos_lvbp():
             break
     
     if not juego_lvbp:
-        st.warning("⚠️ No encontré a Leones, Tiburones, Magallanes o Cardenales. Tomando el primer juego disponible...")
         juego_lvbp = juegos[0]
 
     st.success(f"✅ **Juego encontrado:** {juego_lvbp['away_name']} ✈️ @ 🏠 {juego_lvbp['home_name']}")
-    st.caption(f"ID del Juego: {juego_lvbp['game_id']}")
     st.markdown("---")
 
-    st.write("📥 Extrayendo Boxscore para ambos equipos...")
     try:
         box = statsapi.boxscore_data(juego_lvbp['game_id'])
     except Exception as e:
         st.error(f"Error al extraer boxscore: {e}")
         return
 
-    # Creamos una lista para evaluar tanto al Visitante como al Local
     equipos = [
         ('away', juego_lvbp['away_name'], '✈️ Visitante'),
         ('home', juego_lvbp['home_name'], '🏠 Local')
     ]
 
-    # Hacemos el barrido para ambos lados
     for lado, nombre_equipo, icono in equipos:
-        pitchers_list = box.get(lado, {}).get('pitchers', [])
-        st.markdown(f"### {icono}: {nombre_equipo} ({len(pitchers_list)} lanzadores)")
+        st.markdown(f"## {icono}: {nombre_equipo}")
         
+        # 1. BARRIDO DE LANZADORES
+        pitchers_list = box.get(lado, {}).get('pitchers', [])
+        st.markdown(f"### ⚾ Lanzadores ({len(pitchers_list)})")
         for pid in pitchers_list:
             p_key = f"ID{pid}"
             jugador = box.get(lado, {}).get('players', {}).get(p_key, {})
             nombre = jugador.get('person', {}).get('fullName', 'Desconocido')
-            stats_pitcheo = jugador.get('stats', {}).get('pitching', {})
+            stats_p = jugador.get('stats', {}).get('pitching', {})
             
-            with st.expander(f"👉 {nombre}"):
-                if stats_pitcheo:
-                    st.write(f"- **Innings Lanzados:** {stats_pitcheo.get('inningsPitched', 'VACÍO')}")
-                    st.write(f"- **Hits Permitidos:** {stats_pitcheo.get('hits', 'VACÍO')}")
-                    st.write(f"- **Boletos (BB):** {stats_pitcheo.get('baseOnBalls', 'VACÍO')} 🎯") # <--- AQUI ESTÁN LOS BOLETOS
-                    st.write(f"- **Ponches (K):** {stats_pitcheo.get('strikeOuts', 'VACÍO')}")
-                    st.write(f"- **Pitcheos Totales:** {stats_pitcheo.get('pitchesThrown', 'VACÍO')}")
-                    st.write(f"- **Strikes:** {stats_pitcheo.get('strikes', 'VACÍO')}")
+            with st.expander(f"Pitcher: {nombre}"):
+                if stats_p:
+                    st.write(f"- IP: {stats_p.get('inningsPitched', 'VACÍO')} | H: {stats_p.get('hits', 'VACÍO')} | BB: {stats_p.get('baseOnBalls', 'VACÍO')} | K: {stats_p.get('strikeOuts', 'VACÍO')}")
                 else:
-                    st.error("🚨 ALERTA: Sin estadísticas de pitcheo registradas en la API para este jugador.")
+                    st.error("Sin datos.")
 
-if st.button("Ejecutar Prueba LVBP", type="primary"):
-    with st.spinner("Conectando con los servidores de MLB..."):
+        # 2. BARRIDO DE BATEADORES (LO NUEVO)
+        batters_list = box.get(lado, {}).get('batters', [])
+        st.markdown(f"### 🏏 Bateadores ({len(batters_list)})")
+        for pid in batters_list:
+            p_key = f"ID{pid}"
+            jugador = box.get(lado, {}).get('players', {}).get(p_key, {})
+            nombre = jugador.get('person', {}).get('fullName', 'Desconocido')
+            stats_b = jugador.get('stats', {}).get('batting', {})
+            
+            with st.expander(f"Bateador: {nombre}"):
+                if stats_b:
+                    st.write(f"- **Turnos (AB):** {stats_b.get('atBats', 'VACÍO')}")
+                    st.write(f"- **Hits (H):** {stats_b.get('hits', 'VACÍO')}")
+                    st.write(f"- **Ponches recibidos (SO):** {stats_b.get('strikeOuts', 'VACÍO')}")
+                    st.write(f"- **Impulsadas (RBI):** {stats_b.get('rbi', 'VACÍO')}")
+                else:
+                    st.error("🚨 ALERTA: Sin estadísticas de bateo.")
+
+if st.button("Ejecutar Prueba Completa LVBP", type="primary"):
+    with st.spinner("Analizando pitcheo y bateo..."):
         probar_datos_lvbp()
