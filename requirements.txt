@@ -1,0 +1,7 @@
+streamlit
+pandas
+numpy
+MLB-StatsAPI
+scikit-learn
+requests
+openpyxl
